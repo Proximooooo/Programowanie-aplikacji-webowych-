@@ -13,12 +13,23 @@ function write(items: BoardList[]) {
 
 export function ensureBoardSeed() {
   const items = safeParse<BoardList[]>(localStorage.getItem(LS_LISTS), []);
-  if (items.length > 0) return;
+  if (items.length > 0) {
+    // Update existing items with missing icons
+    const needsUpdate = items.some(item => !item.icon);
+    if (needsUpdate) {
+      const updated = items.map((item, idx) => ({
+        ...item,
+        icon: item.icon || ["📝", "🔄", "✅"][idx] || "📋"
+      }));
+      write(updated);
+    }
+    return;
+  }
 
   write([
-    { id: "l-todo", name: "Do zrobienia", order: 1 },
-    { id: "l-doing", name: "W toku", order: 2 },
-    { id: "l-done", name: "Gotowe", order: 3 },
+    { id: "l-todo", name: "Do zrobienia", order: 1, icon: "📝" },
+    { id: "l-doing", name: "W toku", order: 2, icon: "🔄" },
+    { id: "l-done", name: "Gotowe", order: 3, icon: "✅" },
   ]);
 }
 
