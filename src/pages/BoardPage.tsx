@@ -9,6 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -85,6 +86,26 @@ function CardOverlay({ project }: { project: Project }) {
   );
 }
 
+interface DroppableColumnProps {
+  list: BoardList;
+  children: React.ReactNode;
+}
+
+function DroppableColumn({ list, children }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: list.id,
+  });
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`board-column ${isOver ? 'board-column-over' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function BoardPage() {
   const auth = useAuth();
   const nav = useNavigate();
@@ -150,13 +171,13 @@ export default function BoardPage() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeProject = projects.find((p) => p.id === activeId);
-    if (!activeProject) return;
+    const activeProjectItem = projects.find((p) => p.id === activeId);
+    if (!activeProjectItem) return;
 
-    // Check if over is a column
+    // Check if over is a column directly (using useDroppable)
     const overColumn = lists.find((l) => l.id === overId);
     if (overColumn) {
-      if (activeProject.listId !== overColumn.id) {
+      if (activeProjectItem.listId !== overColumn.id) {
         setProjects((prev) =>
           prev.map((p) =>
             p.id === activeId ? { ...p, listId: overColumn.id } : p
@@ -168,7 +189,7 @@ export default function BoardPage() {
 
     // Over is another card - find its column
     const overProject = projects.find((p) => p.id === overId);
-    if (overProject && overProject.listId !== activeProject.listId) {
+    if (overProject && overProject.listId !== activeProjectItem.listId) {
       setProjects((prev) =>
         prev.map((p) =>
           p.id === activeId ? { ...p, listId: overProject.listId } : p
@@ -184,15 +205,15 @@ export default function BoardPage() {
     if (!over) return;
 
     const activeId = active.id as string;
-    const activeProject = projects.find((p) => p.id === activeId);
-    if (!activeProject) return;
+    const activeProjectItem = projects.find((p) => p.id === activeId);
+    if (!activeProjectItem) return;
 
-    // Find target column
+    // Find target column - check if it's a column directly
     const targetColumn = lists.find((l) => l.id === over.id);
     const overProject = projects.find((p) => p.id === over.id);
     const targetListId = targetColumn?.id ?? overProject?.listId;
 
-    if (targetListId && activeProject.listId !== targetListId) {
+    if (targetListId && activeProjectItem.listId !== targetListId) {
       await projectsApi.update(activeId, { listId: targetListId });
       await refresh();
     }
@@ -290,7 +311,7 @@ export default function BoardPage() {
       >
         <div className="board-columns">
           {lists.map(list => (
-            <div key={list.id} className="board-column">
+            <DroppableColumn key={list.id} list={list}>
               <div className="board-column-header">
                 <div className="board-column-title">
                   <span>{list.icon || "📋"}</span>
@@ -320,7 +341,7 @@ export default function BoardPage() {
                   )}
                 </div>
               </SortableContext>
-            </div>
+            </DroppableColumn>
           ))}
         </div>
 
