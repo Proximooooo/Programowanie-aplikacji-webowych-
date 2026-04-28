@@ -1,0 +1,130 @@
+.historyjka-karta {
+  background: var(--white, #ffffff);
+  border-radius: 0.5rem;
+  padding: 0.875rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  transition: box-shadow 0.2s, transform 0.15s;
+  cursor: default;
+  border: 1px solid var(--gray-100, #f3f4f6);
+}
+
+.historyjka-karta:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.historyjka-karta-priorytet-wysoki {
+  border-left: 3px solid #ef4444;
+}
+
+.historyjka-karta-priorytet-sredni {
+  border-left: 3px solid #f59e0b;
+}
+
+.historyjka-karta-priorytet-niski {
+  border-left: 3px solid #10b981;
+}
+
+.historyjka-karta-naglowek {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.historyjka-karta-nazwa {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--gray-900, #111827);
+  line-height: 1.3;
+  flex: 1;
+}
+
+.historyjka-karta-priorytet-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+.historyjka-karta-priorytet-badge.wysoki {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.historyjka-karta-priorytet-badge.sredni {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.historyjka-karta-priorytet-badge.niski {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.historyjka-karta-opis {
+  font-size: 0.8125rem;
+  color: var(--gray-600, #4b5563);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.historyjka-karta-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--gray-500, #6b7280);
+}
+
+.historyjka-karta-data {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.historyjka-karta-akcje {
+  display: flex;
+  gap: 0.375rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.historyjka-karta:hover .historyjka-karta-akcje {
+  opacity: 1;
+}
+
+.historyjka-karta-akcje button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--gray-500, #6b7280);
+  transition: background 0.15s, color 0.15s;
+}
+
+.historyjka-karta-akcje button:hover {
+  background: var(--gray-100, #f3f4f6);
+  color: var(--gray-900, #111827);
+}
+
+.historyjka-karta-akcje .btn-delete:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .historyjka-karta-akcje {
+    opacity: 1;
+  }
+}
+

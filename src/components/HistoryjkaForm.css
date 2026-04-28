@@ -1,0 +1,103 @@
+.historyjka-form-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.historyjka-form-modal {
+  background: var(--white, #ffffff);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.historyjka-form-modal h2 {
+  margin: 0 0 1.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.historyjka-form-group {
+  margin-bottom: 1rem;
+}
+
+.historyjka-form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700, #374151);
+  margin-bottom: 0.375rem;
+}
+
+.historyjka-form-group input,
+.historyjka-form-group textarea,
+.historyjka-form-group select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-300, #d1d5db);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: var(--white, #ffffff);
+  box-sizing: border-box;
+}
+
+.historyjka-form-group input:focus,
+.historyjka-form-group textarea:focus,
+.historyjka-form-group select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.historyjka-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.historyjka-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #4f46e5;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: var(--white, #ffffff);
+  color: var(--gray-700, #374151);
+  border: 1px solid var(--gray-300, #d1d5db);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: var(--gray-100, #f3f4f6);
+}
+
