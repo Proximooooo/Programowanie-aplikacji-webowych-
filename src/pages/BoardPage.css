@@ -117,19 +117,37 @@
 
 
 .board-card {
+  position: relative;
   background: var(--white);
   border-radius: var(--radius);
   padding: 1rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s, transform 0.2s;
-  cursor: grab;
 }
 
 .board-card:hover {
   box-shadow: var(--shadow-md);
 }
 
-.board-card:active {
+.board-card-drag-handle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  cursor: grab;
+  user-select: none;
+  color: var(--gray-500);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.125rem 0.3rem;
+  border-radius: 6px;
+}
+
+.board-card-drag-handle:hover {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.board-card-drag-handle:active {
   cursor: grabbing;
 }
 

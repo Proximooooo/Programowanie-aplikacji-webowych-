@@ -31,7 +31,22 @@ export const projectsApi = {
     if (!nazwa) throw new Error("Nazwa projektu jest wymagana.");
 
     const items = readAll();
-    const newItem: Project = { ...input, id: genId(), nazwa, opis };
+    const now = new Date().toISOString();
+
+    const maxOrderInList = items
+      .filter((p) => p.listId === input.listId)
+      .reduce((max, p) => Math.max(max, p.order ?? 0), -1);
+
+    const newItem: Project = {
+      ...input,
+      id: genId(),
+      nazwa,
+      opis,
+      status: input.status ?? "NEW",
+      order: input.order ?? maxOrderInList + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
     items.push(newItem);
     writeAll(items);
     return newItem;
@@ -45,10 +60,13 @@ export const projectsApi = {
     const current = items[idx];
     const next: Project = {
       ...current,
-      ...(patch.nazwa !== undefined ? { nazwa: patch.nazwa.trim() } : null),
-      ...(patch.opis !== undefined ? { opis: patch.opis.trim() } : null),
-      ...(patch.listId !== undefined ? { listId: patch.listId } : null),
-      ...(patch.ownerId !== undefined ? { ownerId: patch.ownerId } : null),
+      ...(patch.nazwa !== undefined ? { nazwa: patch.nazwa.trim() } : {}),
+      ...(patch.opis !== undefined ? { opis: patch.opis.trim() } : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.listId !== undefined ? { listId: patch.listId } : {}),
+      ...(patch.ownerId !== undefined ? { ownerId: patch.ownerId } : {}),
+      ...(patch.order !== undefined ? { order: patch.order } : {}),
+      updatedAt: new Date().toISOString(),
     };
     if (!next.nazwa) throw new Error("Nazwa projektu jest wymagana.");
 

@@ -52,7 +52,15 @@ export default function ProjectsPage() {
   async function onCreate() {
     setError(null); setBusy(true);
     try {
-      const created = await api.projects.create(form);
+      const currentInTodo = projects.filter(p => p.listId === "todo");
+      const maxOrderInTodo = currentInTodo.reduce((max, p) => Math.max(max, p.order ?? 0), -1);
+
+      const created = await api.projects.create({
+        ...form,
+        listId: "todo",
+        ownerId: "u-1",
+        order: maxOrderInTodo + 1,
+      });
       await refresh();
       setSelectedId(created.id);
     } catch (e) {

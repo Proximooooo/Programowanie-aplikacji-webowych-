@@ -57,6 +57,53 @@
   gap: 1rem;
 }
 
+.notifications-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--gray-300, #d1d5db);
+  background: var(--white, #ffffff);
+  color: var(--gray-700, #374151);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notifications-link:hover {
+  background: var(--gray-100, #f3f4f6);
+  border-color: var(--gray-400, #9ca3af);
+}
+
+.notifications-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.3rem;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.user-notification-count {
+  margin-left: 0.4rem;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.user-notification-count:hover {
+  text-decoration: underline;
+}
+
 .user-info {
   display: flex;
   align-items: center;

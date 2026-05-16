@@ -1,19 +1,27 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 import type { Historyjka } from "../models/Historyjka";
 import type { Projekt } from "../models/Projekt";
 import type { Uzytkownik } from "../models/Uzytkownik";
+import type { User } from "../models/User";
 import { historyjkiApi, ensureHistoryjkiSeed } from "../api/historyjkiApi";
 import { projektApi } from "../api/projektApi";
 import { uzytkownikApi } from "../api/uzytkownikApi";
+import { authApi } from "../api/authApi";
 import { aktywnyProjektService } from "../services/aktywnyProjektService";
 import Header from "../components/Header";
 import HistoryjkaKarta from "../components/HistoryjkaKarta";
 import HistoryjkaForm from "../components/HistoryjkaForm";
+import NotificationDialog from "../components/NotificationDialog";
+import { notificationApi } from "../api/notificationApi";
+import { notificationService } from "../services/notificationService";
+import type { Notification } from "../models/Notification";
 import "./HistoryjkiPage.css";
 
 export default function HistoryjkiPage() {
   const nav = useNavigate();
+  const auth = useAuth();
 
   const [uzytkownik, setUzytkownik] = useState<Uzytkownik | null>(null);
   const [projekty, setProjekty] = useState<Projekt[]>([]);
@@ -24,6 +32,29 @@ export default function HistoryjkiPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [edytowanaHistoryjka, setEdytowanaHistoryjka] = useState<Historyjka | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [dialogNotification, setDialogNotification] = useState<Notification | null>(null);
+
+  async function notifyAdminsExceptActor(title: string, message: string) {
+    if (!auth.user) return;
+    const users = await authApi.listUsers();
+    const adminIds = users
+      .filter((u: User) => u.role === "ADMIN" && u.id !== auth.user!.id)
+      .map((u: User) => u.id);
+
+    if (adminIds.length === 0) return;
+
+    await Promise.all(
+      adminIds.map((adminId) =>
+        notificationApi.create({
+          title,
+          message,
+          priority: "high",
+          recipientId: adminId,
+        })
+      )
+    );
+  }
 
   async function refreshAll() {
     setLoading(true);
@@ -34,6 +65,7 @@ export default function HistoryjkiPage() {
       setProjekty(p);
 
       ensureHistoryjkiSeed(u.id);
+      await notificationService.seedExampleNotifications(u.id);
 
       const zapisanyProjekt = aktywnyProjektService.get();
       let wybranyId = zapisanyProjekt;
@@ -57,8 +89,35 @@ export default function HistoryjkiPage() {
   }
 
   useEffect(() => {
-    refreshAll();
-  }, []);
+    (async () => {
+      if (auth.loading) return;
+      if (!auth.user) {
+        nav("/login");
+        return;
+      }
+      await refreshAll();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.loading, auth.user]);
+
+  useEffect(() => {
+    if (!uzytkownik) return;
+
+    (async () => {
+      const count = await notificationApi.unreadCount(uzytkownik.id);
+      setUnreadCount(count);
+    })();
+
+    const unsubscribe = notificationService.subscribe((notification) => {
+      if (notification.recipientId !== uzytkownik.id) return;
+      setDialogNotification(notification);
+      setUnreadCount((prev) => prev + (notification.isRead ? 0 : 1));
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [uzytkownik]);
 
   async function handleZmienProjekt(projektId: string) {
     setAktywnyProjektId(projektId);
@@ -80,14 +139,30 @@ export default function HistoryjkiPage() {
     if (!aktywnyProjektId || !uzytkownik) return;
     setError(null);
     try {
-      await historyjkiApi.create({
+      const created = await historyjkiApi.create({
         ...data,
         projektId: aktywnyProjektId,
         wlascicielId: uzytkownik.id,
       });
+
+      const recipientId = auth.user?.id ?? created.wlascicielId;
+      await notificationService.notifyTaskAddedToStoryOwner(
+        recipientId,
+        created.nazwa,
+        "Nowe zadanie"
+      );
+      await notificationService.notifyAssignmentToStoryOrTask(recipientId, created.nazwa);
+
+      await notifyAdminsExceptActor(
+        "Pracownik dodał historyjkę",
+        `${auth.user?.displayName ?? "Użytkownik"} dodał historyjkę: "${created.nazwa}".`
+      );
+
       setFormOpen(false);
       const h = await historyjkiApi.listByProjekt(aktywnyProjektId);
       setHistoryjki(h);
+      const count = await notificationApi.unreadCount(uzytkownik.id);
+      setUnreadCount(count);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Blad podczas dodawania.");
     }
@@ -116,9 +191,27 @@ export default function HistoryjkiPage() {
     if (!confirm("Czy na pewno chcesz usunac ta historyjke?")) return;
     setError(null);
     try {
+      const current = historyjki.find((x) => x.id === id) ?? null;
       await historyjkiApi.remove(id);
+      if (current) {
+        const recipientId = auth.user?.id ?? current.wlascicielId;
+        await notificationService.notifyTaskRemovedFromStoryOwner(
+          recipientId,
+          current.nazwa,
+          "Usuniete zadanie"
+        );
+
+        await notifyAdminsExceptActor(
+          "Usunięto historyjkę",
+          `${auth.user?.displayName ?? "Użytkownik"} usunął historyjkę: "${current.nazwa}".`
+        );
+      }
       const h = await historyjkiApi.listByProjekt(aktywnyProjektId);
       setHistoryjki(h);
+      if (uzytkownik) {
+        const count = await notificationApi.unreadCount(uzytkownik.id);
+        setUnreadCount(count);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Blad podczas usuwania.");
     }
@@ -129,8 +222,27 @@ export default function HistoryjkiPage() {
     setError(null);
     try {
       await historyjkiApi.changeStan(id, stan);
+      const changed = historyjki.find((x) => x.id === id) ?? null;
+      if (changed && (stan === "doing" || stan === "done")) {
+        const recipientId = auth.user?.id ?? changed.wlascicielId;
+        await notificationService.notifyTaskStatusChangedToStoryOwner(
+          recipientId,
+          changed.nazwa,
+          "Status historyjki",
+          stan
+        );
+
+        await notifyAdminsExceptActor(
+          "Zmiana statusu historyjki",
+          `${auth.user?.displayName ?? "Użytkownik"} zmienił status "${changed.nazwa}" na "${stan}".`
+        );
+      }
       const h = await historyjkiApi.listByProjekt(aktywnyProjektId);
       setHistoryjki(h);
+      if (uzytkownik) {
+        const count = await notificationApi.unreadCount(uzytkownik.id);
+        setUnreadCount(count);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Blad podczas zmiany stanu.");
     }
@@ -149,9 +261,9 @@ export default function HistoryjkiPage() {
   }, [historyjki]);
 
   const kolumny: { id: Historyjka["stan"]; tytul: string; ikona: string; klasa: string }[] = [
-    { id: "todo", tytul: "TODO", ikona: "📝", klasa: "todo" },
-    { id: "doing", tytul: "DOING", ikona: "🔄", klasa: "doing" },
-    { id: "done", tytul: "DONE", ikona: "✅", klasa: "done" },
+    { id: "todo", tytul: "Do zrobienia", ikona: "📝", klasa: "todo" },
+    { id: "doing", tytul: "W trakcie", ikona: "🔄", klasa: "doing" },
+    { id: "done", tytul: "Zrobione", ikona: "✅", klasa: "done" },
   ];
 
   if (loading) {
@@ -180,8 +292,13 @@ export default function HistoryjkiPage() {
         uzytkownik={uzytkownik}
         projekty={projekty}
         aktywnyProjektId={aktywnyProjektId}
+        unreadCount={unreadCount}
         onZmienProjekt={handleZmienProjekt}
-        onWyloguj={() => nav("/login")}
+        onWyloguj={async () => {
+          await auth.logout();
+          nav("/login");
+        }}
+        onOpenNotifications={() => nav("/notifications")}
       />
 
       <div className="historyjki-content">
@@ -246,7 +363,6 @@ export default function HistoryjkiPage() {
       {(formOpen || edytowanaHistoryjka) && (
         <HistoryjkaForm
           historyjka={edytowanaHistoryjka}
-          projektId={aktywnyProjektId ?? ""}
           onZapisz={edytowanaHistoryjka ? handleEdytujHistoryjke : handleDodajHistoryjke}
           onAnuluj={() => {
             setFormOpen(false);
@@ -254,6 +370,11 @@ export default function HistoryjkiPage() {
           }}
         />
       )}
+
+      <NotificationDialog
+        notification={dialogNotification}
+        onClose={() => setDialogNotification(null)}
+      />
     </div>
   );
 }

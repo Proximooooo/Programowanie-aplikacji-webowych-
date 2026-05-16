@@ -19,6 +19,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { BoardList } from "../models/BoardList";
@@ -54,9 +55,10 @@ function SortableCard({ project, onDelete }: SortableCardProps) {
       ref={setNodeRef}
       style={style}
       className="board-card"
-      {...attributes}
-      {...listeners}
     >
+      <div className="board-card-drag-handle" {...attributes} {...listeners} title="Przeciągnij kartę">
+        ⋮⋮
+      </div>
       <div className="board-card-title">{project.nazwa}</div>
       {project.opis && <div className="board-card-description">{project.opis}</div>}
       <div className="board-card-meta">
@@ -152,6 +154,11 @@ export default function BoardPage() {
     const map: Record<string, Project[]> = {};
     for (const l of lists) map[l.id] = [];
     for (const p of projects) (map[p.listId] ??= []).push(p);
+
+    for (const listId of Object.keys(map)) {
+      map[listId].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
     return map;
   }, [lists, projects]);
 
@@ -168,55 +175,112 @@ export default function BoardPage() {
     const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id as string;
+    const activeProjectId = active.id as string;
     const overId = over.id as string;
 
-    const activeProjectItem = projects.find((p) => p.id === activeId);
-    if (!activeProjectItem) return;
+    const activeProject = projects.find((p) => p.id === activeProjectId);
+    if (!activeProject) return;
 
-    // Check if over is a column directly (using useDroppable)
     const overColumn = lists.find((l) => l.id === overId);
     if (overColumn) {
-      if (activeProjectItem.listId !== overColumn.id) {
+      if (activeProject.listId !== overColumn.id) {
         setProjects((prev) =>
           prev.map((p) =>
-            p.id === activeId ? { ...p, listId: overColumn.id } : p
+            p.id === activeProjectId ? { ...p, listId: overColumn.id } : p
           )
         );
       }
       return;
     }
 
-    // Over is another card - find its column
     const overProject = projects.find((p) => p.id === overId);
-    if (overProject && overProject.listId !== activeProjectItem.listId) {
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === activeId ? { ...p, listId: overProject.listId } : p
-        )
-      );
-    }
+    if (!overProject) return;
+
+    setProjects((prev) => {
+      const activeIndex = prev.findIndex((p) => p.id === activeProjectId);
+      const overIndex = prev.findIndex((p) => p.id === overId);
+      if (activeIndex < 0 || overIndex < 0) return prev;
+
+      const next = [...prev];
+      next[activeIndex] = { ...next[activeIndex], listId: overProject.listId };
+      return arrayMove(next, activeIndex, overIndex);
+    });
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
+    if (!over) {
+      await refresh();
+      return;
+    }
 
-    if (!over) return;
+    const activeProjectId = active.id as string;
+    const overId = over.id as string;
 
-    const activeId = active.id as string;
-    const activeProjectItem = projects.find((p) => p.id === activeId);
-    if (!activeProjectItem) return;
+    const snapshot = [...projects];
+    const activeProject = snapshot.find((p) => p.id === activeProjectId);
+    if (!activeProject) return;
 
-    // Find target column - check if it's a column directly
-    const targetColumn = lists.find((l) => l.id === over.id);
-    const overProject = projects.find((p) => p.id === over.id);
-    const targetListId = targetColumn?.id ?? overProject?.listId;
+    const overColumn = lists.find((l) => l.id === overId);
+    const overProject = snapshot.find((p) => p.id === overId);
+    const targetListId = overColumn?.id ?? overProject?.listId;
+    if (!targetListId) return;
 
-    if (targetListId && activeProjectItem.listId !== targetListId) {
-      await projectsApi.update(activeId, { listId: targetListId });
+    const base = snapshot.map((p) =>
+      p.id === activeProjectId ? { ...p, listId: targetListId } : p
+    );
+
+    let moved = base;
+    if (overProject) {
+      const fromIndex = base.findIndex((p) => p.id === activeProjectId);
+      const toIndex = base.findIndex((p) => p.id === overProject.id);
+      if (fromIndex >= 0 && toIndex >= 0) {
+        moved = arrayMove(base, fromIndex, toIndex);
+      }
+    }
+
+    const recalculated: Project[] = [];
+    for (const list of lists) {
+      const items = moved
+        .filter((p) => p.listId === list.id)
+        .map((p, index) => ({ ...p, order: index }));
+      recalculated.push(...items);
+    }
+
+    const byId = new Map(recalculated.map((p) => [p.id, p]));
+    const finalProjects = snapshot.map((p) => byId.get(p.id) ?? p);
+
+    setProjects(finalProjects);
+    setErr(null);
+
+    try {
+      const changed = finalProjects.filter((p) => {
+        const prev = snapshot.find((x) => x.id === p.id);
+        if (!prev) return false;
+        return prev.listId !== p.listId || (prev.order ?? 0) !== (p.order ?? 0);
+      });
+
+      if (changed.length > 0) {
+        await Promise.all(
+          changed.map((p) =>
+            projectsApi.update(p.id, {
+              listId: p.listId,
+              order: p.order,
+            })
+          )
+        );
+      }
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Błąd podczas zapisu kolejności");
       await refresh();
     }
+  }
+
+  async function handleDragCancel() {
+    setActiveId(null);
+    await refresh();
   }
 
   async function handleDelete(id: string) {
@@ -283,11 +347,18 @@ export default function BoardPage() {
                 try {
                   const firstList = lists[0]?.id;
                   if (!firstList) throw new Error("Brak kolumn na tablicy.");
+                  const maxOrderInFirstList = (projectsByList[firstList] ?? []).reduce(
+                    (max, p) => Math.max(max, p.order ?? 0),
+                    -1
+                  );
+
                   await projectsApi.create({
                     nazwa,
                     opis,
+                    status: "NEW",
                     listId: firstList,
                     ownerId: auth.user!.role === "ADMIN" ? "u-worker" : auth.user!.id,
+                    order: maxOrderInFirstList + 1,
                   });
                   setNazwa(""); setOpis("");
                   await refresh();
@@ -308,6 +379,7 @@ export default function BoardPage() {
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
         <div className="board-columns">
           {lists.map(list => (
