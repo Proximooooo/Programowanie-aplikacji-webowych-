@@ -19,7 +19,6 @@ function writeUsers(users: User[]) {
 export function ensureAuthSeed() {
   const users = readUsers();
   
-  // Seed default users if none exist
   if (users.length === 0) {
     const seed: User[] = [
       { id: "u-admin", login: "admin", password: "Admin123!", role: "ADMIN", displayName: "Admin" },
@@ -30,7 +29,6 @@ export function ensureAuthSeed() {
     return;
   }
 
-  // Add Janek if doesn't exist (for existing users)
   const hasJanek = users.some(u => u.login === "janek");
   if (!hasJanek) {
     users.push({ id: "u-user2", login: "janek", password: "Janek123!", role: "WORKER", displayName: "Janek" });
@@ -62,7 +60,6 @@ export const authApi = {
     return users.find(u => u.id === session.userId) ?? null;
   },
 
-  // (opcjonalnie dla admina)
   async listUsers(): Promise<User[]> {
     ensureAuthSeed();
     return readUsers();

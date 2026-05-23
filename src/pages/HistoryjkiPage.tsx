@@ -130,6 +130,46 @@ export default function HistoryjkiPage() {
     }
   }
 
+  async function handleDodajProjekt() {
+    if (!auth.user) return;
+    setError(null);
+
+    const nazwa = prompt("Podaj nazwę nowego projektu:");
+    if (!nazwa || !nazwa.trim()) return;
+
+    const opis = prompt("Podaj opis projektu (opcjonalnie):") ?? "";
+
+    try {
+      const created = await projektApi.create({
+        nazwa: nazwa.trim(),
+        opis: opis.trim(),
+      });
+
+      const refreshedProjects = await projektApi.list();
+      setProjekty(refreshedProjects);
+
+      setAktywnyProjektId(created.id);
+      aktywnyProjektService.set(created.id);
+      setHistoryjki([]);
+
+      const users = await authApi.listUsers();
+      const adminIds = users
+        .filter((u: User) => u.role === "ADMIN" && u.id !== auth.user!.id)
+        .map((u: User) => u.id);
+
+      if (adminIds.length > 0) {
+        await notificationService.notifyNewProjectToAdmins(adminIds, created.nazwa);
+      }
+
+      if (uzytkownik) {
+        const count = await notificationApi.unreadCount(uzytkownik.id);
+        setUnreadCount(count);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Blad podczas dodawania projektu.");
+    }
+  }
+
   async function handleDodajHistoryjke(data: {
     nazwa: string;
     opis: string;
@@ -294,6 +334,7 @@ export default function HistoryjkiPage() {
         aktywnyProjektId={aktywnyProjektId}
         unreadCount={unreadCount}
         onZmienProjekt={handleZmienProjekt}
+        onDodajProjekt={handleDodajProjekt}
         onWyloguj={async () => {
           await auth.logout();
           nav("/login");

@@ -8,6 +8,7 @@ interface HeaderProps {
   aktywnyProjektId: string | null;
   unreadCount: number;
   onZmienProjekt: (projektId: string) => void;
+  onDodajProjekt: () => void;
   onWyloguj: () => void;
   onOpenNotifications: () => void;
 }
@@ -18,6 +19,7 @@ export default function Header({
   aktywnyProjektId,
   unreadCount,
   onZmienProjekt,
+  onDodajProjekt,
   onWyloguj,
   onOpenNotifications,
 }: HeaderProps) {
@@ -43,6 +45,9 @@ export default function Header({
               </option>
             ))}
           </select>
+          <button className="btn-primary" onClick={onDodajProjekt}>
+            ➕ Dodaj projekt
+          </button>
         </div>
       </div>
 
